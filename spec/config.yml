@@ -1,0 +1,6 @@
+project_name: uxrp-protocol
+
+principals:
+- id: user
+  attributes:
+    id: string

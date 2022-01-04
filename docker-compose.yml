@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  minio:
+    image: minio/minio
+    entrypoint: sh
+    command: -c 'mkdir -p /buckets/data && minio server /buckets'
+    ports:
+      - 25000:9000
+    environment:
+      MINIO_ACCESS_KEY: blah
+      MINIO_SECRET_KEY: blahblah
+  redis:
+    image: redis:6.0
+    ports:
+      - 25001:6379
+  dynamodb:
+    image: amazon/dynamodb-local
+    ports:
+      - 25002:8000

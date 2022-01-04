@@ -1,0 +1,21 @@
+id: auth
+
+errors:
+- id: user_exists
+- id: invalid_credentials
+
+endpoints:
+- id: register
+  req:
+    email: string
+    password: string
+- id: login
+  req:
+    email: string
+    password: string
+  res:
+    token: string
+- id: test
+  principal: user
+  res:
+    principal_id: string

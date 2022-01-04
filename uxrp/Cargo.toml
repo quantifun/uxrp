@@ -1,0 +1,11 @@
+[package]
+name = "uxrp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+uxrp-protocol = { path = "../rust_server" }
+uuid = { version = "0.8", features = [ "v4" ] }
+redis = { version = "0.21", features = [ "tokio-comp", "connection-manager" ] }
+thiserror = "1"
+serde_json = "1"
