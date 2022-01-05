@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use uxrp::session::RedisSessionStore;
+use uxrp::session::SessionStore;
 use uxrp::user::UserStore;
 use uxrp_protocol::actix_web::{self, web, App, HttpServer};
 use uxrp_protocol::async_trait::async_trait;
@@ -7,7 +7,7 @@ use uxrp_protocol::auth::*;
 use uxrp_protocol::core::{HttpPrincipalResolver, Result, UserPrincipal};
 
 struct AuthService {
-	session_store: Arc<RedisSessionStore>,
+	session_store: Arc<SessionStore>,
 	user_store: UserStore,
 }
 
@@ -34,7 +34,7 @@ impl Service for AuthService {
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
 	let session_store = Arc::new(
-		RedisSessionStore::new("redis://localhost:25001")
+		SessionStore::new("redis://localhost:25001")
 			.await
 			.expect("failed to init user resolver"),
 	);

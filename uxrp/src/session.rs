@@ -5,14 +5,14 @@ use uxrp_protocol::async_trait::async_trait;
 use uxrp_protocol::core::{Error, HttpPrincipalResolver, Result, UserPrincipal};
 
 #[derive(Debug, Clone)]
-pub struct RedisSessionStore {
+pub struct SessionStore {
 	redis: Client,
 }
 
-impl RedisSessionStore {
+impl SessionStore {
 	pub async fn new(connstring: &str) -> Result<Self> {
 		let client = Client::open(connstring)?;
-		Ok(RedisSessionStore { redis: client })
+		Ok(SessionStore { redis: client })
 	}
 
 	fn session_key(&self, token: &str) -> String {
@@ -29,7 +29,7 @@ impl RedisSessionStore {
 }
 
 #[async_trait(?Send)]
-impl HttpPrincipalResolver<UserPrincipal> for RedisSessionStore {
+impl HttpPrincipalResolver<UserPrincipal> for SessionStore {
 	async fn resolve(&self, req: HttpRequest) -> Result<UserPrincipal> {
 		let token = req
 			.headers()
