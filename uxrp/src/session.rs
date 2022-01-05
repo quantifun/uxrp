@@ -1,32 +1,25 @@
-use redis::{AsyncCommands, Client, RedisError};
+use redis::{AsyncCommands, Client};
 use uuid::Uuid;
-use uxrp_protocol::actix_web::{HttpRequest, HttpResponse};
+use uxrp_protocol::actix_web::HttpRequest;
 use uxrp_protocol::async_trait::async_trait;
-use uxrp_protocol::core::{HttpPrincipalResolver, UserPrincipal};
+use uxrp_protocol::core::{Error, HttpPrincipalResolver, Result, UserPrincipal};
 
-#[derive(thiserror::Error, Debug)]
-pub enum SessionError {
-	#[error("redis error: {0}")]
-	Redis(#[from] RedisError),
-	#[error("serde error: {0}")]
-	Serde(#[from] serde_json::Error),
-}
-
-pub struct UserPrincipalResolver {
+#[derive(Debug, Clone)]
+pub struct RedisSessionStore {
 	redis: Client,
 }
 
-impl UserPrincipalResolver {
-	pub async fn new(connstring: &str) -> Result<Self, SessionError> {
+impl RedisSessionStore {
+	pub async fn new(connstring: &str) -> Result<Self> {
 		let client = Client::open(connstring)?;
-		Ok(UserPrincipalResolver { redis: client })
+		Ok(RedisSessionStore { redis: client })
 	}
 
 	fn session_key(&self, token: &str) -> String {
 		format!("sessions:{}", token)
 	}
 
-	pub async fn create_session(&self, user: UserPrincipal) -> Result<String, SessionError> {
+	pub async fn create(&self, user: UserPrincipal) -> Result<String> {
 		let token = Uuid::new_v4().to_string();
 		let mut conn = self.redis.get_async_connection().await?;
 		conn.set(self.session_key(&token), serde_json::to_string(&user)?)
@@ -36,29 +29,21 @@ impl UserPrincipalResolver {
 }
 
 #[async_trait(?Send)]
-impl HttpPrincipalResolver<UserPrincipal> for UserPrincipalResolver {
-	async fn resolve(&self, req: HttpRequest) -> Result<UserPrincipal, HttpResponse> {
+impl HttpPrincipalResolver<UserPrincipal> for RedisSessionStore {
+	async fn resolve(&self, req: HttpRequest) -> Result<UserPrincipal> {
 		let token = req
 			.headers()
 			.get("Authorization")
 			.and_then(|h| h.to_str().ok())
 			.and_then(|t| t.strip_prefix("Bearer "))
-			.ok_or_else(|| HttpResponse::Unauthorized().finish())?;
+			.ok_or(Error::InvalidCredentials)?;
 
-		let mut conn = self
-			.redis
-			.get_async_connection()
-			.await
-			.expect("failed to retrieve redis conn");
-
-		let data: Option<String> = conn
-			.get(self.session_key(token))
-			.await
-			.expect("failed to query session");
+		let mut conn = self.redis.get_async_connection().await?;
+		let data: Option<String> = conn.get(self.session_key(token)).await?;
 
 		match data {
-			Some(s) => Ok(serde_json::from_str(&s).expect("invalid json data")),
-			None => Err(HttpResponse::Unauthorized().finish()),
+			Some(s) => Ok(serde_json::from_str(&s)?),
+			None => Err(Error::InvalidCredentials),
 		}
 	}
 }

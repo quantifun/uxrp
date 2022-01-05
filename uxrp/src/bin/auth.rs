@@ -1,23 +1,30 @@
 use std::sync::Arc;
-use uxrp::session::UserPrincipalResolver;
+use uxrp::session::RedisSessionStore;
+use uxrp::user::UserStore;
 use uxrp_protocol::actix_web::{self, web, App, HttpServer};
 use uxrp_protocol::async_trait::async_trait;
 use uxrp_protocol::auth::*;
-use uxrp_protocol::core::{HttpPrincipalResolver, UserPrincipal};
+use uxrp_protocol::core::{HttpPrincipalResolver, Result, UserPrincipal};
 
-struct AuthService {}
+struct AuthService {
+	session_store: Arc<RedisSessionStore>,
+	user_store: UserStore,
+}
 
 #[async_trait]
 impl Service for AuthService {
-	async fn register(&self, _req: &RegisterRequest) -> Result<RegisterResponse, Error> {
-		todo!()
+	async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse> {
+		self.user_store.create(&req.email, &req.password).await?;
+		Ok(RegisterResponse {})
 	}
 
-	async fn login(&self, _req: &LoginRequest) -> Result<LoginResponse, Error> {
-		todo!()
+	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse> {
+		let id = self.user_store.verify(&req.email, &req.password).await?;
+		let token = self.session_store.create(UserPrincipal { id }).await?;
+		Ok(LoginResponse { token })
 	}
 
-	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse, Error> {
+	async fn test(&self, _req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse> {
 		Ok(TestResponse {
 			principal_id: caller.id.clone(),
 		})
@@ -26,18 +33,23 @@ impl Service for AuthService {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-	let resolver = Arc::new(
-		UserPrincipalResolver::new("redis://localhost:25001")
+	let session_store = Arc::new(
+		RedisSessionStore::new("redis://localhost:25001")
 			.await
 			.expect("failed to init user resolver"),
 	);
 
+	let user_store = UserStore::new();
+
 	HttpServer::new(move || {
 		App::new()
 			.app_data(web::Data::from(
-				resolver.clone() as Arc<dyn HttpPrincipalResolver<UserPrincipal>>
+				session_store.clone() as Arc<dyn HttpPrincipalResolver<UserPrincipal>>
 			))
-			.service(create_scope(Arc::new(AuthService {})))
+			.service(create_scope(Arc::new(AuthService {
+				session_store: session_store.clone(),
+				user_store: user_store.clone(),
+			})))
 	})
 	.bind(("0.0.0.0", 1337))?
 	.run()

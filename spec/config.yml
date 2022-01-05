@@ -4,3 +4,9 @@ principals:
 - id: user
   attributes:
     id: string
+
+errors:
+- id: user_exists
+  code: 409
+- id: invalid_credentials
+  code: 401
