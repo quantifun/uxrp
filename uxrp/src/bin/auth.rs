@@ -1,7 +1,9 @@
+use config::Config;
+use serde::Deserialize;
 use std::sync::Arc;
-use uxrp::session::SessionStore;
-use uxrp::user::UserStore;
-use uxrp_protocol::actix_web::{self, web, App, HttpServer};
+use uxrp::session::{SessionStore, SessionStoreConfig};
+use uxrp::user::{UserStore, UserStoreConfig};
+use uxrp_protocol::actix_web::{web, App, HttpServer};
 use uxrp_protocol::async_trait::async_trait;
 use uxrp_protocol::auth::*;
 use uxrp_protocol::core::{HttpPrincipalResolver, Result, UserPrincipal};
@@ -31,15 +33,36 @@ impl Service for AuthService {
 	}
 }
 
-#[actix_web::main]
+#[derive(Deserialize)]
+struct AppConfig {
+	user_store: UserStoreConfig,
+	session_store: SessionStoreConfig,
+}
+
+// TODO: deserialize's replacement in `config`, try_into, conflicts with the new 2021 prelude
+// looks to be fixed in github latest, so replace once new crates.io version is out
+#[allow(deprecated)]
+fn load_conf() -> AppConfig {
+	let mut config = Config::new();
+
+	config
+		.merge(config::File::with_name("settings.toml"))
+		.expect("config retrieval failed");
+
+	config.deserialize().expect("config deserialisation failed")
+}
+
+#[tokio::main]
 async fn main() -> std::io::Result<()> {
+	let config = load_conf();
+
 	let session_store = Arc::new(
-		SessionStore::new("redis://localhost:25001")
+		SessionStore::new(config.session_store)
 			.await
 			.expect("failed to init user resolver"),
 	);
 
-	let user_store = UserStore::new();
+	let user_store = UserStore::new(config.user_store).await;
 
 	HttpServer::new(move || {
 		App::new()

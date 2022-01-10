@@ -1,0 +1,6 @@
+[user_store]
+ddb_endpoint = "http://localhost:25002"
+auth_table_name = "uxrp-auth"
+
+[session_store]
+redis_connstring = "redis://localhost:25001"

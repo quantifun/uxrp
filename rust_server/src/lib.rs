@@ -18,7 +18,7 @@ pub mod core {
 	}
 	impl actix_web::error::ResponseError for Error {
 		fn error_response(&self) -> actix_web::HttpResponse {
-			actix_web::dev::HttpResponseBuilder::new(self.status_code()).body(self.to_string())
+			actix_web::HttpResponseBuilder::new(self.status_code()).body(self.to_string())
 		}
 		fn status_code(&self) -> actix_web::http::StatusCode {
 			match *self {

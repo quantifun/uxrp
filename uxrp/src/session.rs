@@ -1,8 +1,14 @@
 use redis::{AsyncCommands, Client};
+use serde::Deserialize;
 use uuid::Uuid;
 use uxrp_protocol::actix_web::HttpRequest;
 use uxrp_protocol::async_trait::async_trait;
 use uxrp_protocol::core::{Error, HttpPrincipalResolver, Result, UserPrincipal};
+
+#[derive(Clone, Deserialize)]
+pub struct SessionStoreConfig {
+	redis_connstring: String,
+}
 
 #[derive(Debug, Clone)]
 pub struct SessionStore {
@@ -10,8 +16,8 @@ pub struct SessionStore {
 }
 
 impl SessionStore {
-	pub async fn new(connstring: &str) -> Result<Self> {
-		let client = Client::open(connstring)?;
+	pub async fn new(config: SessionStoreConfig) -> Result<Self> {
+		let client = Client::open(config.redis_connstring)?;
 		Ok(SessionStore { redis: client })
 	}
 
