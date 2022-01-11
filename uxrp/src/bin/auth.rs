@@ -21,7 +21,7 @@ impl Service for AuthService {
 	}
 
 	async fn login(&self, req: &LoginRequest) -> Result<LoginResponse> {
-		let id = self.user_store.verify(&req.email, &req.password).await?;
+		let id = self.user_store.authenticate(&req.email, &req.password).await?;
 		let token = self.session_store.create(UserPrincipal { id }).await?;
 		Ok(LoginResponse { token })
 	}

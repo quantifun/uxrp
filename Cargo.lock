@@ -320,6 +320,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "aws-sdk-ses"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39636fba2e43139fc299f542b9d6913cb28effa017bb93a170db68b740bd447b"
+dependencies = [
+ "aws-endpoint",
+ "aws-http",
+ "aws-sig-auth",
+ "aws-smithy-async",
+ "aws-smithy-client",
+ "aws-smithy-http",
+ "aws-smithy-http-tower",
+ "aws-smithy-query",
+ "aws-smithy-types",
+ "aws-smithy-xml",
+ "aws-types",
+ "bytes",
+ "http",
+ "tower",
+]
+
+[[package]]
 name = "aws-sdk-sts"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1636,6 +1658,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_dynamo"
+version = "3.0.0-alpha.2"
+source = "git+https://github.com/mbergkvist/serde_dynamo.git?branch=3.0.0-alpha#eb9300bdfdb36fd6722e61e3875e2ad64b5c8197"
+dependencies = [
+ "aws-sdk-dynamodb",
+ "serde 1.0.133",
+]
+
+[[package]]
 name = "serde_json"
 version = "1.0.74"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1978,11 +2009,13 @@ version = "0.1.0"
 dependencies = [
  "aws-config",
  "aws-sdk-dynamodb",
+ "aws-sdk-ses",
  "config",
  "rand",
  "redis",
  "rust-argon2",
  "serde 1.0.133",
+ "serde_dynamo",
  "serde_json",
  "thiserror",
  "tokio",

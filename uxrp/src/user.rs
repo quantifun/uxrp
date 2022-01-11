@@ -1,6 +1,6 @@
-use aws_sdk_dynamodb::{model::AttributeValue, Blob, Client, Endpoint};
+use aws_sdk_dynamodb::{model::AttributeValue, Client, Endpoint};
 use rand::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use uxrp_protocol::core::{Error, Result};
 
@@ -14,6 +14,14 @@ pub struct UserStoreConfig {
 pub struct UserStore {
 	client: Client,
 	auth_table_name: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct UserCredentials {
+	id: String,
+	user_id: String,
+	password_hash: Vec<u8>,
+	password_salt: Vec<u8>,
 }
 
 impl UserStore {
@@ -37,19 +45,24 @@ impl UserStore {
 
 	pub async fn create(&self, email: &str, password: &str) -> Result<String> {
 		let user_id = Uuid::new_v4().to_string();
-		let mut password_salt = [0u8; 128];
+		let mut password_salt = Vec::new();
+		password_salt.resize(128, 0);
 		rand::thread_rng().fill_bytes(&mut password_salt);
 
 		// TODO: store argon2 config versions and key auth items against them
 		let password_hash = argon2::hash_raw(password.as_bytes(), &password_salt, &argon2::Config::default())?;
 
+		let user_item = serde_dynamo::to_item(UserCredentials {
+			id: self.auth_item_id(email),
+			user_id: user_id.clone(),
+			password_hash,
+			password_salt,
+		})?;
+
 		self.client
 			.put_item()
 			.table_name(&self.auth_table_name)
-			.item("id", AttributeValue::S(self.auth_item_id(email)))
-			.item("user_id", AttributeValue::S(user_id.clone()))
-			.item("password_hash", AttributeValue::B(Blob::new(password_hash)))
-			.item("password_salt", AttributeValue::B(Blob::new(password_salt)))
+			.set_item(Some(user_item))
 			.condition_expression("attribute_not_exists(id)")
 			.send()
 			.await?;
@@ -57,7 +70,7 @@ impl UserStore {
 		Ok(user_id)
 	}
 
-	pub async fn verify(&self, email: &str, password: &str) -> Result<String> {
+	pub async fn authenticate(&self, email: &str, password: &str) -> Result<String> {
 		let res = self
 			.client
 			.get_item()
@@ -66,18 +79,15 @@ impl UserStore {
 			.send()
 			.await?;
 
-		let item = res.item.ok_or(Error::InvalidCredentials)?;
-
-		let password_hash = item["password_hash"].as_b().unwrap();
-		let password_salt = item["password_salt"].as_b().unwrap();
+		let creds: UserCredentials = serde_dynamo::from_item(res.item.ok_or(Error::InvalidCredentials)?)?;
 
 		if argon2::verify_raw(
 			password.as_bytes(),
-			password_salt.as_ref(),
-			password_hash.as_ref(),
+			&creds.password_salt,
+			&creds.password_hash,
 			&argon2::Config::default(),
 		)? {
-			Ok(item["user_id"].as_s().unwrap().clone())
+			Ok(creds.user_id)
 		} else {
 			Err(Error::InvalidCredentials)
 		}

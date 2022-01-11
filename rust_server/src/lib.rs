@@ -7,6 +7,10 @@ pub mod core {
 		UserExists,
 		#[display(fmt = "invalid_credentials")]
 		InvalidCredentials,
+		#[cfg(debug_assertions)]
+		#[display(fmt = "internal_error: {}", "_0")]
+		Internal(Box<dyn std::error::Error>),
+		#[cfg(not(debug_assertions))]
 		#[display(fmt = "internal_error")]
 		Internal(Box<dyn std::error::Error>),
 	}
