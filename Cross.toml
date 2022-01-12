@@ -1,0 +1,4 @@
+[build.env]
+passthrough = [
+	"AWS_DEFAULT_REGION",
+]
