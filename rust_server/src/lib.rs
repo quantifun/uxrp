@@ -7,6 +7,8 @@ pub mod core {
 		UserExists,
 		#[display(fmt = "invalid_credentials")]
 		InvalidCredentials,
+		#[display(fmt = "user_unverified")]
+		UserUnverified,
 		#[cfg(debug_assertions)]
 		#[display(fmt = "internal_error: {}", "_0")]
 		Internal(Box<dyn std::error::Error>),
@@ -28,6 +30,7 @@ pub mod core {
 			match *self {
 				Self::UserExists => actix_web::http::StatusCode::from_u16(409).unwrap(),
 				Self::InvalidCredentials => actix_web::http::StatusCode::from_u16(401).unwrap(),
+				Self::UserUnverified => actix_web::http::StatusCode::from_u16(403).unwrap(),
 				_ => actix_web::http::StatusCode::INTERNAL_SERVER_ERROR,
 			}
 		}
@@ -65,11 +68,18 @@ pub mod auth {
 	pub struct TestResponse {
 		pub principal_id: String,
 	}
+	#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+	pub struct VerifyRequest {
+		pub token: String,
+	}
+	#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+	pub struct VerifyResponse {}
 	#[async_trait::async_trait]
 	pub trait Service {
 		async fn register(&self, req: &RegisterRequest) -> Result<RegisterResponse>;
 		async fn login(&self, req: &LoginRequest) -> Result<LoginResponse>;
 		async fn test(&self, req: &TestRequest, caller: &UserPrincipal) -> Result<TestResponse>;
+		async fn verify(&self, req: &VerifyRequest) -> Result<VerifyResponse>;
 	}
 	async fn http_handler_register(
 		svc: actix_web::web::Data<dyn Service>,
@@ -94,11 +104,19 @@ pub mod auth {
 		let result = svc.test(&req, &resolver.resolve(http_req).await?).await?;
 		Ok(actix_web::HttpResponse::Ok().json(result))
 	}
+	async fn http_handler_verify(
+		svc: actix_web::web::Data<dyn Service>,
+		req: actix_web::web::Json<VerifyRequest>,
+	) -> Result<actix_web::HttpResponse> {
+		let result = svc.verify(&req).await?;
+		Ok(actix_web::HttpResponse::Ok().json(result))
+	}
 	pub fn create_scope(svc: std::sync::Arc<dyn Service>) -> actix_web::Scope {
 		actix_web::web::scope("auth")
 			.app_data(actix_web::web::Data::from(svc))
 			.service(actix_web::web::resource("register").route(actix_web::web::post().to(http_handler_register)))
 			.service(actix_web::web::resource("login").route(actix_web::web::post().to(http_handler_login)))
 			.service(actix_web::web::resource("test").route(actix_web::web::post().to(http_handler_test)))
+			.service(actix_web::web::resource("verify").route(actix_web::web::post().to(http_handler_verify)))
 	}
 }

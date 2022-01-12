@@ -10,3 +10,5 @@ errors:
   code: 409
 - id: invalid_credentials
   code: 401
+- id: user_unverified
+  code: 403

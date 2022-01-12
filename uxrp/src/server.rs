@@ -31,6 +31,11 @@ impl Service for AuthService {
 			principal_id: caller.id.clone(),
 		})
 	}
+
+	async fn verify(&self, req: &VerifyRequest) -> Result<VerifyResponse> {
+		self.user_store.verify(&req.token).await?;
+		Ok(VerifyResponse {})
+	}
 }
 
 #[derive(Deserialize)]

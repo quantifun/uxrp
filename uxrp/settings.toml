@@ -2,6 +2,7 @@
 ddb_endpoint = "http://localhost:25002"
 auth_table_name = "uxrp-auth"
 randomise_id_prefix = true
+skip_email_verification = true
 
 [session_store]
 redis_connstring = "redis://localhost:25001"
