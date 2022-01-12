@@ -4,16 +4,8 @@ on: push
 
 jobs:
   test:
-    strategy:
-      fail-fast: false
-      matrix:
-        target:
-        - x86_64-unknown-linux-gnu
-        - aarch64-unknown-linux-gnu
-
     runs-on: ubuntu-20.04
 
-    # make sure additions here are replicated to Cross.toml's passthrough list
     env:
       AWS_DEFAULT_REGION: eu-west-1
       AWS_ACCESS_KEY_ID: blah
@@ -28,20 +20,39 @@ jobs:
       with:
         components: rustfmt, clippy
 
-    - name: Install cross
-      run: cargo install cross
-
     - name: Boot test dependencies
       run: docker-compose up -d && ./bootstrap
-
-    - name: Build
-      run: cross build --target ${{ matrix.target }}
     
     - name: Run tests
-      run: cross test --target ${{ matrix.target }}
+      run: cargo test
 
     - name: Run clippy
       uses: actions-rs/cargo@v1
       with:
         command: clippy
         args: -- -D warnings
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+        - x86_64-unknown-linux-gnu
+        - aarch64-unknown-linux-gnu
+
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        components: rustfmt, clippy
+
+    - name: Install cross
+      run: cargo install cross
+
+    - name: Build
+      run: cross build --target ${{ matrix.target }}
