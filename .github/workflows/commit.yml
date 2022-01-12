@@ -9,6 +9,8 @@ jobs:
       matrix:
         os:
         - ubuntu-20.04
+        toolchain:
+        - 1.58
 
     runs-on: ${{ matrix.os }}
 
@@ -20,6 +22,7 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         components: rustfmt, clippy
+        toolchain: ${{ matrix.toolchain }}
 
     - name: Boot test dependencies
       run: docker-compose up -d && ./bootstrap
@@ -28,3 +31,9 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
+
+    - name: Run clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: -- -D warnings
