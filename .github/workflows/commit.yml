@@ -1,0 +1,30 @@
+name: Commit
+
+on: push
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+        - ubuntu-20.04
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Install toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        components: rustfmt, clippy
+
+    - name: Boot test dependencies
+      run: docker-compose up -d && ./bootstrap
+    
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
