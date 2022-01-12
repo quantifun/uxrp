@@ -127,8 +127,8 @@ impl UserStore {
 		self.ddb
 			.update_item()
 			.key("id", AttributeValue::S(self.creds_item_id(&verification.email)))
-			.update_expression("SET verified = #verified")
-			.expression_attribute_values("#verified", AttributeValue::Bool(true))
+			.update_expression("SET verified = :verified")
+			.expression_attribute_values(":verified", AttributeValue::Bool(true))
 			.send()
 			.await?;
 
