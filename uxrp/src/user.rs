@@ -8,12 +8,17 @@ use uxrp_protocol::core::{Error, Result};
 pub struct UserStoreConfig {
 	ddb_endpoint: Option<String>,
 	auth_table_name: String,
+
+	// test support
+	#[serde(default)]
+	randomise_id_prefix: bool,
 }
 
 #[derive(Clone)]
 pub struct UserStore {
 	client: Client,
 	auth_table_name: String,
+	id_prefix: String,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -22,6 +27,7 @@ struct UserCredentials {
 	user_id: String,
 	password_hash: Vec<u8>,
 	password_salt: Vec<u8>,
+	email_verified: bool,
 }
 
 impl UserStore {
@@ -36,11 +42,16 @@ impl UserStore {
 		Self {
 			client,
 			auth_table_name: config.auth_table_name,
+			id_prefix: if config.randomise_id_prefix {
+				format!("{}/", Uuid::new_v4())
+			} else {
+				"".to_owned()
+			},
 		}
 	}
 
 	fn auth_item_id(&self, email: &str) -> String {
-		format!("auth/email/{}", email)
+		format!("{}auth/email/{}", self.id_prefix, email)
 	}
 
 	pub async fn create(&self, email: &str, password: &str) -> Result<String> {
@@ -57,6 +68,7 @@ impl UserStore {
 			user_id: user_id.clone(),
 			password_hash,
 			password_salt,
+			email_verified: false,
 		})?;
 
 		self.client

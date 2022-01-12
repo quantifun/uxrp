@@ -1,9 +1,9 @@
+use crate::session::{SessionStore, SessionStoreConfig};
+use crate::user::{UserStore, UserStoreConfig};
 use config::Config;
 use serde::Deserialize;
 use std::sync::Arc;
-use uxrp::session::{SessionStore, SessionStoreConfig};
-use uxrp::user::{UserStore, UserStoreConfig};
-use uxrp_protocol::actix_web::{web, App, HttpServer};
+use uxrp_protocol::actix_web::web::{Data, ServiceConfig};
 use uxrp_protocol::async_trait::async_trait;
 use uxrp_protocol::auth::*;
 use uxrp_protocol::core::{HttpPrincipalResolver, Result, UserPrincipal};
@@ -52,8 +52,7 @@ fn load_conf() -> AppConfig {
 	config.deserialize().expect("config deserialisation failed")
 }
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
+pub async fn get_app_config() -> impl Fn(&mut ServiceConfig) + Clone {
 	let config = load_conf();
 
 	let session_store = Arc::new(
@@ -64,17 +63,13 @@ async fn main() -> std::io::Result<()> {
 
 	let user_store = UserStore::new(config.user_store).await;
 
-	HttpServer::new(move || {
-		App::new()
-			.app_data(web::Data::from(
-				session_store.clone() as Arc<dyn HttpPrincipalResolver<UserPrincipal>>
-			))
-			.service(create_scope(Arc::new(AuthService {
-				session_store: session_store.clone(),
-				user_store: user_store.clone(),
-			})))
-	})
-	.bind(("0.0.0.0", 1337))?
-	.run()
-	.await
+	move |cfg| {
+		cfg.app_data(Data::from(
+			session_store.clone() as Arc<dyn HttpPrincipalResolver<UserPrincipal>>
+		))
+		.service(create_scope(Arc::new(AuthService {
+			session_store: session_store.clone(),
+			user_store: user_store.clone(),
+		})));
+	}
 }
